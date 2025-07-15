@@ -1,8 +1,7 @@
 import { connectDB } from '../db/db.js';
-import { Job } from '../db/models.js';
+import { jobRoutes } from '../routes/api.js';
 
 export default async function handler(req, res) {
-  // ✅ CORS setup
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -25,44 +24,14 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ Route: GET /jobs
-    if (url === "/jobs" && method === "GET") {
-      const page = parseInt(req.query?.page) || 1;
-      const limit = parseInt(req.query?.limit) || 100;
-
-      const jobs = await Job.find()
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit);
-
-      const total = await Job.countDocuments();
-
-      return res.status(200).json({
-        jobs,
-        total,
-        page,
-        pages: Math.ceil(total / limit),
-      });
+    // ✅ Delegate GET /jobs
+    if (url.startsWith("/jobs") && method === "GET") {
+      return jobRoutes.getJobs(req, res);
     }
 
-    // ✅ Route: POST /jobs
+    // ✅ Delegate POST /jobs
     if (url === "/jobs" && method === "POST") {
-      const payload = Array.isArray(req.body) ? req.body : [req.body];
-      const urls = payload.map((j) => j.apply_url);
-
-      const existing = await Job.find({ apply_url: { $in: urls } }).select("apply_url");
-      const existingUrls = new Set(existing.map((j) => j.apply_url));
-
-      const docsToInsert = payload.filter((j) => !existingUrls.has(j.apply_url));
-
-      if (docsToInsert.length) {
-        await Job.insertMany(docsToInsert, { ordered: false });
-      }
-
-      return res.status(200).json({
-        added: docsToInsert.length,
-        skipped: payload.length - docsToInsert.length,
-      });
+      return jobRoutes.postJobs(req, res);
     }
 
     // ❌ Unknown path/method
