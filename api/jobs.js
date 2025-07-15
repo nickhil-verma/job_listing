@@ -1,21 +1,56 @@
 // api/jobs.js
 import { connectDB } from '../db/db.js';
-import { jobRoutes } from '../routes/api.js';
+import { Job } from '../db/models.js';
 
 export default async function handler(req, res) {
   try {
     await connectDB();
 
     if (req.method === 'GET') {
-      return jobRoutes.getJobs(req, res);
+      // Paginated job listings
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 100;
+
+      const jobs = await Job.find()
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
+
+      const total = await Job.countDocuments();
+
+      return res.status(200).json({
+        jobs,
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      });
+
     } else if (req.method === 'POST') {
-      return jobRoutes.postJobs(req, res);
+      // Bulk or single insert
+      const payload = Array.isArray(req.body) ? req.body : [req.body];
+      const urls = payload.map((j) => j.apply_url);
+
+      const existing = await Job.find({ apply_url: { $in: urls } }).select("apply_url");
+      const existingUrls = new Set(existing.map((j) => j.apply_url));
+
+      const docsToInsert = payload.filter((j) => !existingUrls.has(j.apply_url));
+
+      if (docsToInsert.length) {
+        await Job.insertMany(docsToInsert, { ordered: false });
+      }
+
+      return res.status(200).json({
+        added: docsToInsert.length,
+        skipped: payload.length - docsToInsert.length,
+      });
+
     } else {
       res.setHeader('Allow', ['GET', 'POST']);
-      return res.status(405).end(`Method ${req.method} Not Allowed`);
+      return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
+
   } catch (err) {
-    console.error('API Handler Error:', err);
+    console.error('❌ API Handler Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
