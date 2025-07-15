@@ -5,8 +5,8 @@
    "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon api/jobs.js",
-    "vercel-build": "echo 'no build needed'"
+    "dev": "nodemon api/jobs.js"
+     
   },
   "keywords": [],
   "author": "",
