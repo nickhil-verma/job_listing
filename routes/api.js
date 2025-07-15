@@ -1,54 +1,44 @@
-// routes/api.js
-import { Job } from "../db/models.js"
+import { connectDB } from '../db/db.js';
+import { jobRoutes } from '../routes/api.js';
 
-export const jobRoutes = {
-  // GET /jobs
-  getJobs: async (req, res) => {
-    try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 100;
+export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-      const jobs = await Job.find()
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit);
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
-      const total = await Job.countDocuments();
+  try {
+    await connectDB();
 
-      res.json({
-        jobs,
-        total,
-        page,
-        pages: Math.ceil(total / limit),
+    const { url, method } = req;
+
+    // ✅ Route: GET /
+    if (url === "/" && method === "GET") {
+      return res.status(200).json({
+        message: "🌍 Job Listing API is live!",
+        endpoints: ["/jobs (GET, POST)"],
+        timestamp: new Date().toISOString(),
       });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Internal server error" });
     }
-  },
 
-  // POST /jobs
-  postJobs: async (req, res) => {
-    try {
-      const payload = Array.isArray(req.body) ? req.body : [req.body];
-      const urls = payload.map((j) => j.apply_url);
-
-      const existing = await Job.find({ apply_url: { $in: urls } }).select("apply_url");
-      const existingUrls = new Set(existing.map((j) => j.apply_url));
-
-      const docsToInsert = payload.filter((j) => !existingUrls.has(j.apply_url));
-
-      if (docsToInsert.length) {
-        await Job.insertMany(docsToInsert, { ordered: false });
-      }
-
-      res.json({
-        added: docsToInsert.length,
-        skipped: payload.length - docsToInsert.length,
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Internal server error" });
+    // ✅ Delegate GET /jobs
+    if (url.startsWith("/jobs") && method === "GET") {
+      return jobRoutes.getJobs(req, res);
     }
-  },
-};
+
+    // ✅ Delegate POST /jobs
+    if (url === "/jobs" && method === "POST") {
+      return jobRoutes.postJobs(req, res);
+    }
+
+    // ❌ Unknown path/method
+    return res.status(404).json({ error: `Route ${method} ${url} not found` });
+
+  } catch (err) {
+    console.error("❌ API Handler Error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
