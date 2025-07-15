@@ -3,13 +3,19 @@ import { connectDB } from '../db/db.js';
 import { jobRoutes } from '../routes/api.js';
 
 export default async function handler(req, res) {
-  await connectDB();
+  try {
+    await connectDB();
 
-  if (req.method === 'GET') {
-    return jobRoutes.getJobs(req, res);
-  } else if (req.method === 'POST') {
-    return jobRoutes.postJobs(req, res);
-  } else {
-    res.status(405).json({ error: 'Method Not Allowed' });
+    if (req.method === 'GET') {
+      return jobRoutes.getJobs(req, res);
+    } else if (req.method === 'POST') {
+      return jobRoutes.postJobs(req, res);
+    } else {
+      res.setHeader('Allow', ['GET', 'POST']);
+      return res.status(405).end(`Method ${req.method} Not Allowed`);
+    }
+  } catch (err) {
+    console.error('API Handler Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
