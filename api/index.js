@@ -1,4 +1,3 @@
-// api/jobs.js
 import { connectDB } from '../db/db.js';
 import { Job } from '../db/models.js';
 
@@ -63,8 +62,4 @@ export default async function handler(req, res) {
     console.error('❌ API Handler Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
-}
-
-export default function handler(req, res) {
-  res.status(200).json({ message: "🌍 Hello from Vercel root route!" });
 }
