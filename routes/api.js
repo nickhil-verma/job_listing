@@ -1,12 +1,14 @@
 // routes/api.js
-import { Job } from "../db/models.js"
+import { Job } from "../db/models.js";
+import { parse } from 'url';
 
 export const jobRoutes = {
   // GET /jobs
   getJobs: async (req, res) => {
     try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 100;
+      const { query } = parse(req.url, true);
+      const page = parseInt(query.page) || 1;
+      const limit = parseInt(query.limit) || 100;
 
       const jobs = await Job.find()
         .sort({ createdAt: -1 })

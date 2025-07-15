@@ -1,5 +1,21 @@
+// api/handler.js
 import { connectDB } from '../db/db.js';
 import { jobRoutes } from '../routes/api.js';
+import { parse } from 'url';
+
+const getRequestBody = async (req) => {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => (body += chunk.toString()));
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(body));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+};
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -31,6 +47,7 @@ export default async function handler(req, res) {
 
     // ✅ Delegate POST /jobs
     if (url === "/jobs" && method === "POST") {
+      req.body = await getRequestBody(req); // parse body manually
       return jobRoutes.postJobs(req, res);
     }
 
