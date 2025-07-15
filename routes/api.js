@@ -1,5 +1,5 @@
 // routes/api.js
-import { Job } from "../db/models";
+import { Job } from "../db/models.js"
 
 export const jobRoutes = {
   // GET /jobs

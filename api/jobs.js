@@ -1,27 +1,24 @@
-// api/jobs.js
+// index.js (CommonJS version for local testing)
+import dotenv from 'dotenv';
+import express from 'express';
 
-import { connectDB } from "../db/db";
-import { jobRoutes } from "../routes/api";
-import { createRouter } from "next-connect";
+import cors from 'cors';
+import { connectDB } from '../db/db.js';
 
-// Create a Next.js-compatible router
-const router = createRouter();
+import { jobRoutes } from '../routes/api.js';
 
-// Attach route handlers
-router.get(jobRoutes.getJobs);
-router.post(jobRoutes.postJobs);
+const app = express();
+app.use(express.json());
 
-// Serverless function handler
-export default async function handler(req, res) {
-  await connectDB(); // Ensure DB connection (cached in serverless env)
-  return router.run(req, res); // Execute routes
-}
+// Define your job routes
+app.get('/jobs', jobRoutes.getJobs);
+app.post('/jobs', jobRoutes.postJobs);
 
-// Allow large payloads
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "5mb",
-    },
-  },
-};
+// Connect to MongoDB and start the server
+connectDB().then(() => {
+  app.listen(3000, () => {
+    console.log('🚀 Local server running on http://localhost:3000');
+  });
+}).catch(err => {
+  console.error('❌ DB connection failed:', err);
+});

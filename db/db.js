@@ -1,5 +1,9 @@
 // db/db.js
 import mongoose from "mongoose";
+import dotenv from "dotenv";
+
+// Always load env vars before anything else
+dotenv.config();
 
 let cached = global.mongoose;
 
