@@ -27,38 +27,18 @@ export default async function handler(req, res) {
   try {
     await connectDB();
 
-    const { url, method } = req;
-
-    // ✅ GET /
-    if (url === "/" && method === "GET") {
-      return res.status(200).json({
-        message: "🌍 Job Listing API is live!",
-        endpoints: ["/jobs (GET, POST)", "/jobsbyids (POST)"],
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // ✅ GET /jobs
-    if (url.startsWith("/jobs") && method === "GET") {
+    if (req.method === "GET") {
       return jobRoutes.getJobs(req, res);
     }
 
-    // ✅ POST /jobs
-    if (url === "/jobs" && method === "POST") {
+    if (req.method === "POST") {
       req.body = await getRequestBody(req);
       return jobRoutes.postJobs(req, res);
     }
 
-    // ✅ POST /jobsbyids
-    if (url === "/jobsbyids" && method === "POST") {
-      req.body = await getRequestBody(req);
-      return jobRoutes.jobsByIds(req, res);
-    }
-
-    return res.status(404).json({ error: `Route ${method} ${url} not found` });
-
+    return res.status(405).json({ error: `Method ${req.method} not allowed` });
   } catch (err) {
-    console.error("❌ API Handler Error:", err);
+    console.error("❌ /api/jobs Error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 }
