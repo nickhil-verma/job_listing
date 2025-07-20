@@ -28,10 +28,12 @@ export default async function handler(req, res) {
   try {
     await connectDB();
 
-    const { url, method } = req;
+    const parsed = parse(req.url, true); // 🛠️ Parse pathname safely
+    const pathname = parsed.pathname;
+    const method = req.method;
 
     // ✅ Route: GET /
-    if (url === "/" && method === "GET") {
+    if (pathname === "/" && method === "GET") {
       return res.status(200).json({
         message: "🌍 Job Listing API is live!",
         endpoints: ["/jobs (GET, POST)", "/jobsbyids (POST)"],
@@ -40,24 +42,24 @@ export default async function handler(req, res) {
     }
 
     // ✅ GET /jobs
-    if (url.startsWith("/jobs") && method === "GET") {
+    if (pathname === "/jobs" && method === "GET") {
       return jobRoutes.getJobs(req, res);
     }
 
     // ✅ POST /jobs
-    if (url === "/jobs" && method === "POST") {
+    if (pathname === "/jobs" && method === "POST") {
       req.body = await getRequestBody(req);
       return jobRoutes.postJobs(req, res);
     }
 
     // ✅ POST /jobsbyids
-    if (url === "/jobsbyids" && method === "POST") {
+    if (pathname === "/jobsbyids" && method === "POST") {
       req.body = await getRequestBody(req);
       return jobRoutes.jobsByIds(req, res);
     }
 
     // ❌ Unknown path/method
-    return res.status(404).json({ error: `Route ${method} ${url} not found` });
+    return res.status(404).json({ error: `Route ${method} ${pathname} not found` });
 
   } catch (err) {
     console.error("❌ API Handler Error:", err);
