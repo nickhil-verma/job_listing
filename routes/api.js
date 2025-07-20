@@ -128,6 +128,36 @@ export const jobRoutes = {
     res.status(500).json({ error: "Internal server error" });
   }
 },
+// POST /jobsbyids
+jobsByIds: async (req, res) => {
+  try {
+    const { ids, page = 1, limit = 10 } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Missing or invalid 'ids' array." });
+    }
+
+    const sanitizedIds = ids.filter(Boolean);
+    const skip = (Math.max(parseInt(page), 1) - 1) * parseInt(limit);
+
+    const total = sanitizedIds.length;
+    const pages = Math.ceil(total / limit);
+
+    const paginatedIds = sanitizedIds.slice(skip, skip + parseInt(limit));
+
+    const jobs = await Job.find({ _id: { $in: paginatedIds } });
+
+    res.json({
+      jobs,
+      total,
+      page: parseInt(page),
+      pages,
+    });
+  } catch (err) {
+    console.error("Error in jobsByIds:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+},
 
   // POST /jobs
   postJobs: async (req, res) => {
