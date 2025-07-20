@@ -1,64 +1,30 @@
-import { connectDB } from '../db/db.js';
-import { jobRoutes } from '../routes/api.js';
+import express from 'express';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import routes from '../routes/api.js'; // make sure the path is correct
 
-const getRequestBody = async (req) => {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', chunk => (body += chunk.toString()));
-    req.on('end', () => {
-      try {
-        resolve(JSON.parse(body));
-      } catch (err) {
-        reject(err);
-      }
-    });
-  });
-};
+dotenv.config();
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-  try {
-    await connectDB();
+// Routes
+app.use('/api', routes);
 
-    const { url, method } = req;
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log('MongoDB connected successfully'))
+.catch((err) => console.error('MongoDB connection failed:', err));
 
-    // ✅ GET /
-    if (url === "/" && method === "GET") {
-      return res.status(200).json({
-        message: "🌍 Job Listing API is live!",
-        endpoints: ["/jobs (GET, POST)", "/jobsbyids (POST)"],
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // ✅ GET /jobs
-    if (url.startsWith("/jobs") && method === "GET") {
-      return jobRoutes.getJobs(req, res);
-    }
-
-    // ✅ POST /jobs
-    if (url === "/jobs" && method === "POST") {
-      req.body = await getRequestBody(req);
-      return jobRoutes.postJobs(req, res);
-    }
-
-    // ✅ POST /jobsbyids
-    if (url === "/jobsbyids" && method === "POST") {
-      req.body = await getRequestBody(req);
-      return jobRoutes.jobsByIds(req, res);
-    }
-
-    return res.status(404).json({ error: `Route ${method} ${url} not found` });
-
-  } catch (err) {
-    console.error("❌ API Handler Error:", err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-}
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});

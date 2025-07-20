@@ -3,12 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
- 
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node -r dotenv/config api/index.js",
+    "dev": "nodemon api/index.js",
     "vercel-build": "echo 'no build needed'"
-     
   },
   "keywords": [],
   "author": "",
@@ -21,6 +19,7 @@
     "express": "^5.1.0",
     "mongodb": "^6.17.0",
     "mongoose": "^8.16.1",
+    "nodemon": "^3.1.10",
     "serverless-http": "^3.2.0"
   }
 }

@@ -1,6 +1,8 @@
-// routes/api.js
+import express from "express";
 import { Job } from "../db/models.js";
 import { parse } from "url";
+
+const router = express.Router();
 
 const sanitizeJob = (job) => ({
   ...job,
@@ -10,8 +12,8 @@ const sanitizeJob = (job) => ({
   company_image: job.company_image?.trim(),
   location: job.location?.trim(),
   experience: job.experience?.trim(),
-  job_type: job.job_type?.trim()?.toLowerCase(), // Ensure consistency
-  work_mode: job.work_mode?.trim()?.toLowerCase(), // Ensure consistency
+  job_type: job.job_type?.trim()?.toLowerCase(),
+  work_mode: job.work_mode?.trim()?.toLowerCase(),
   skills: Array.isArray(job.skills)
     ? job.skills.map((s) => s.trim().toLowerCase())
     : [],
@@ -23,9 +25,8 @@ const isValidJob = (job) =>
   typeof job.apply_url === "string" &&
   job.apply_url.startsWith("http");
 
-export const jobRoutes = {
-  // GET /jobs?page=1&limit=100&q=software&skills=react,node&experience=1-3 years&location=bangalore&roleType=engineering&jobType=remote&sort=latest
-  getJobs: async (req, res) => {
+// GET /jobs
+router.get("/jobs", async (req, res) => {
   try {
     const { query } = parse(req.url, true);
     const page = Math.max(parseInt(query.page) || 1, 1);
@@ -33,7 +34,6 @@ export const jobRoutes = {
     const searchTerm = query.q?.trim() || '';
     const sortOrder = query.sort || 'latest';
 
-    // Filter params
     const experienceInput = query.experience ? query.experience.trim() : '';
     const locationInput = query.location ? query.location.trim().toLowerCase() : '';
     const roleType = query.roleType ? query.roleType.trim().toLowerCase() : '';
@@ -44,7 +44,6 @@ export const jobRoutes = {
 
     const findQuery = {};
 
-    // Search Term across multiple fields
     if (searchTerm) {
       const regex = new RegExp(searchTerm, 'i');
       findQuery.$or = [
@@ -54,44 +53,35 @@ export const jobRoutes = {
       ];
     }
 
-    // Location - flexible match including broader regions
     if (locationInput) {
       const locRegex = new RegExp(locationInput, 'i');
       findQuery.location = { $regex: locRegex };
     }
 
-    // Experience filtering (e.g., input "2" matches "1-3 years" or "2+ years")
     if (experienceInput) {
       const userYears = parseInt(experienceInput.match(/\d+/)?.[0] || "0");
-
-      // Custom filter in memory due to format inconsistency
-      const allJobs = await Job.find(); // Later apply filters in memory
+      const allJobs = await Job.find();
       const matchedJobs = allJobs.filter(job => {
         const jobExp = job.experience || '';
         const expMatch = jobExp.match(/(\d+)(?:\s*-\s*(\d+))?/);
         if (!expMatch) return false;
-
         const minExp = parseInt(expMatch[1]);
         const maxExp = expMatch[2] ? parseInt(expMatch[2]) : minExp;
         return userYears >= minExp;
       });
 
-      // Filtered job IDs
       const ids = matchedJobs.map(job => job._id.toString());
       findQuery._id = { $in: ids };
     }
 
-    // Skills - match any of the provided ones
     if (skillsInput.length > 0) {
       findQuery.skills = { $in: skillsInput };
     }
 
-    // Job Type (full time / part time)
     if (jobType) {
       findQuery.job_type = { $regex: new RegExp(jobType, 'i') };
     }
 
-    // Role Type - fuzzy match in title/description
     if (roleType) {
       const roleRegex = new RegExp(roleType, 'i');
       const roleFilter = {
@@ -124,18 +114,18 @@ export const jobRoutes = {
       pages: Math.ceil(totalFilteredJobs / limit),
     });
   } catch (err) {
-    console.error("Error in getJobs:", err);
+    console.error("Error in GET /jobs:", err);
     res.status(500).json({ error: "Internal server error" });
   }
-},
+});
+
 // POST /jobsbyids
-jobsByIds: async (req, res) => {
+router.post("/jobsbyids", async (req, res) => {
   try {
     const { ids, page = 1, limit = 10 } = req.body;
 
     if (!Array.isArray(ids) || ids.length === 0) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ error: "Missing or invalid 'ids' array." }));
+      return res.status(400).json({ error: "Missing or invalid 'ids' array." });
     }
 
     const sanitizedIds = ids.filter(Boolean);
@@ -143,58 +133,53 @@ jobsByIds: async (req, res) => {
 
     const total = sanitizedIds.length;
     const pages = Math.ceil(total / limit);
-
     const paginatedIds = sanitizedIds.slice(skip, skip + parseInt(limit));
 
     const jobs = await Job.find({ _id: { $in: paginatedIds } });
 
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
+    res.json({
       jobs,
       total,
       page: parseInt(page),
       pages,
-    }));
+    });
   } catch (err) {
-    console.error("Error in jobsByIds:", err);
-    res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Internal server error" }));
+    console.error("Error in POST /jobsbyids:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
-},
+});
 
+// POST /jobs
+router.post("/jobs", async (req, res) => {
+  try {
+    const payload = Array.isArray(req.body) ? req.body : [req.body];
+    const sanitizedPayload = payload.map(sanitizeJob);
+    const validPayload = sanitizedPayload.filter(isValidJob);
 
-  // POST /jobs
-  postJobs: async (req, res) => {
-    try {
-      const payload = Array.isArray(req.body) ? req.body : [req.body];
+    const urls = validPayload.map((j) => j.apply_url);
+    const existing = await Job.find({ apply_url: { $in: urls } }).select("apply_url");
+    const existingUrls = new Set(existing.map((j) => j.apply_url));
+    const docsToInsert = validPayload.filter((j) => !existingUrls.has(j.apply_url));
 
-      const sanitizedPayload = payload.map(sanitizeJob);
-      const validPayload = sanitizedPayload.filter(isValidJob);
-
-      const urls = validPayload.map((j) => j.apply_url);
-      const existing = await Job.find({ apply_url: { $in: urls } }).select("apply_url");
-      const existingUrls = new Set(existing.map((j) => j.apply_url));
-
-      const docsToInsert = validPayload.filter((j) => !existingUrls.has(j.apply_url));
-
-      if (docsToInsert.length) {
-        try {
-          await Job.insertMany(docsToInsert, { ordered: false });
-        } catch (insertErr) {
-          console.error("Insert error:", insertErr);
-        }
+    if (docsToInsert.length) {
+      try {
+        await Job.insertMany(docsToInsert, { ordered: false });
+      } catch (insertErr) {
+        console.error("Insert error:", insertErr);
       }
-
-      res.json({
-        added: docsToInsert.length,
-        skipped: payload.length - docsToInsert.length,
-        duplicates: validPayload
-          .map((j) => j.apply_url)
-          .filter((url) => existingUrls.has(url)),
-      });
-    } catch (err) {
-      console.error("Error in postJobs:", err);
-      res.status(500).json({ error: "Internal server error" });
     }
-  },
-};
+
+    res.json({
+      added: docsToInsert.length,
+      skipped: payload.length - docsToInsert.length,
+      duplicates: validPayload
+        .map((j) => j.apply_url)
+        .filter((url) => existingUrls.has(url)),
+    });
+  } catch (err) {
+    console.error("Error in POST /jobs:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+export default router;
