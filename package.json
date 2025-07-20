@@ -2,10 +2,11 @@
   "name": "backend",
   "version": "1.0.0",
   "main": "index.js",
-   
+  "type": "module",
+ 
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon api/jobs.js",
+    "dev": "node -r dotenv/config api/index.js",
     "vercel-build": "echo 'no build needed'"
      
   },

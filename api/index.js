@@ -1,4 +1,3 @@
-// api/handler.js
 import { connectDB } from '../db/db.js';
 import { jobRoutes } from '../routes/api.js';
 import { parse } from 'url';
@@ -35,20 +34,26 @@ export default async function handler(req, res) {
     if (url === "/" && method === "GET") {
       return res.status(200).json({
         message: "🌍 Job Listing API is live!",
-        endpoints: ["/jobs (GET, POST)"],
+        endpoints: ["/jobs (GET, POST)", "/jobsbyids (POST)"],
         timestamp: new Date().toISOString(),
       });
     }
 
-    // ✅ Delegate GET /jobs
+    // ✅ GET /jobs
     if (url.startsWith("/jobs") && method === "GET") {
       return jobRoutes.getJobs(req, res);
     }
 
-    // ✅ Delegate POST /jobs
+    // ✅ POST /jobs
     if (url === "/jobs" && method === "POST") {
-      req.body = await getRequestBody(req); // parse body manually
+      req.body = await getRequestBody(req);
       return jobRoutes.postJobs(req, res);
+    }
+
+    // ✅ POST /jobsbyids
+    if (url === "/jobsbyids" && method === "POST") {
+      req.body = await getRequestBody(req);
+      return jobRoutes.jobsByIds(req, res);
     }
 
     // ❌ Unknown path/method
