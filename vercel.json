@@ -1,13 +1,16 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    { "src": "/jobs", "methods": ["GET", "POST", "OPTIONS"], "dest": "/api/index.js" },
-    { "src": "/", "methods": ["GET"], "dest": "/api/index.js" }
-  ]
-}
+    "version": 2,
+    "builds": [
+      {
+        "src": "api/index.js",
+        "use": "@vercel/node"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/(.*)",
+        "dest": "api/index.js"
+      }
+    ]
+  }
+  
