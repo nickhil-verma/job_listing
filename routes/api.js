@@ -134,7 +134,8 @@ jobsByIds: async (req, res) => {
     const { ids, page = 1, limit = 10 } = req.body;
 
     if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ error: "Missing or invalid 'ids' array." });
+      res.writeHead(400, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Missing or invalid 'ids' array." }));
     }
 
     const sanitizedIds = ids.filter(Boolean);
@@ -147,17 +148,20 @@ jobsByIds: async (req, res) => {
 
     const jobs = await Job.find({ _id: { $in: paginatedIds } });
 
-    res.json({
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
       jobs,
       total,
       page: parseInt(page),
       pages,
-    });
+    }));
   } catch (err) {
     console.error("Error in jobsByIds:", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Internal server error" }));
   }
 },
+
 
   // POST /jobs
   postJobs: async (req, res) => {
